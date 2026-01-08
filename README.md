@@ -1,6 +1,6 @@
-# Atelier Full-Stack – Bachelor 3
+# Task manager with Docker
 ## 🧰 Prérequis
-Docker, Docker Compose, Git
+Docker, Docker Compose, Git , Wsl (Windows)
 
 Vérification :
 ```bash
