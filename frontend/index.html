@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager - 3 Columns</title>
+    <script src='https://unpkg.com/vue@3/dist/vue.global.js'></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Section Authentification -->
+        <div v-if="!isAuthenticated" class="auth-container">
+            <div class="auth-box">
+                <h1><i class="fas fa-columns"></i> Task Manager 3.0</h1>
+                <p class="subtitle">Organize your tasks in 3 columns</p>
+                
+                <div v-if="authError" class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i> {{ authError }}
+                </div>
+                <div v-if="authSuccess" class="alert alert-success">
+                    <i class="fas fa-check-circle"></i> {{ authSuccess }}
+                </div>
+                
+                <!-- Formulaire de Connexion -->
+                <div v-if="authMode === 'login'">
+                    <h2><i class="fas fa-sign-in-alt"></i> Login</h2>
+                    <div class="form-group">
+                        <label for="login-username">
+                            <i class="fas fa-user"></i> Username
+                        </label>
+                        <input type="text" id="login-username" v-model="loginData.username" 
+                               placeholder="Your username" @keyup.enter="login">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">
+                            <i class="fas fa-key"></i> Password
+                        </label>
+                        <input type="password" id="login-password" v-model="loginData.password" 
+                               placeholder="Your password" @keyup.enter="login">
+                    </div>
+                    <button @click="login" class="btn btn-primary btn-block">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                    <div class="auth-links">
+                        Don't have an account? 
+                        <a @click="switchAuthMode('register')" class="auth-link">
+                            <i class="fas fa-user-plus"></i> Register
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Formulaire d'Inscription -->
+                <div v-if="authMode === 'register'">
+                    <h2><i class="fas fa-user-plus"></i> Register</h2>
+                    <div class="form-group">
+                        <label for="register-username">
+                            <i class="fas fa-user"></i> Username
+                        </label>
+                        <input type="text" id="register-username" v-model="registerData.username" 
+                               placeholder="Choose a username">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">
+                            <i class="fas fa-envelope"></i> Email
+                        </label>
+                        <input type="email" id="register-email" v-model="registerData.email" 
+                               placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">
+                            <i class="fas fa-key"></i> Password
+                        </label>
+                        <input type="password" id="register-password" v-model="registerData.password" 
+                               placeholder="At least 6 characters">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-confirm-password">
+                            <i class="fas fa-key"></i> Confirm Password
+                        </label>
+                        <input type="password" id="register-confirm-password" v-model="registerData.confirmPassword" 
+                               placeholder="Confirm your password" @keyup.enter="register">
+                    </div>
+                    <button @click="register" class="btn btn-primary btn-block">
+                        <i class="fas fa-user-plus"></i> Register
+                    </button>
+                    <div class="auth-links">
+                        Already have an account? 
+                        <a @click="switchAuthMode('login')" class="auth-link">
+                            <i class="fas fa-sign-in-alt"></i> Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section Tâches (après authentification) -->
+        <div v-else class="app-container">
+            <!-- En-tête avec informations utilisateur -->
+            <div class="user-header">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <div class="user-details">
+                        <span class="username">Welcome, <strong>{{ user.username }}</strong></span>
+                        <span class="user-email">{{ user.email }}</span>
+                    </div>
+                </div>
+                <div class="stats">
+                    <span class="stat-item todo-stat">
+                        <i class="fas fa-clock"></i> {{ todoTasks.length }} To Do
+                    </span>
+                    <span class="stat-item progress-stat">
+                        <i class="fas fa-spinner"></i> {{ inProgressTasks.length }} In Progress
+                    </span>
+                    <span class="stat-item done-stat">
+                        <i class="fas fa-check-circle"></i> {{ doneTasks.length }} Done
+                    </span>
+                </div>
+                <button @click="logout" class="btn btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+            
+            <!-- Section principale des tâches -->
+            <div class="main-content">
+                <h1><i class="fas fa-columns"></i> My Tasks Dashboard</h1>
+                
+                <!-- Formulaire d'ajout de tâche -->
+                <div class="add-task-section">
+                    <div class="add-task">
+                        <div class="task-title-input">
+                            <input v-model='newTask' placeholder="Task title..." @keyup.enter='addTask'>
+                        </div>
+                        <div class="task-date-input">
+                            <label for="start-date">
+                                <i class="far fa-calendar-alt"></i> Start date:
+                            </label>
+                            <input type="date" id="start-date" v-model='newTaskDate' :min="today">
+                        </div>
+                        <button @click='addTask' class="btn-add">
+                            <i class="fas fa-plus"></i> Add Task
+                        </button>
+                    </div>
+                    <div class="hint">
+                        <i class="fas fa-info-circle"></i> Tasks are automatically added to "To Do" column
+                    </div>
+                </div>
+                
+                <!-- LES 3 COLONNES DE TÂCHES -->
+                <div class="tasks-columns-container">
+                    <!-- Colonne 1 : À faire -->
+                    <div class="tasks-column todo-column" @dragover.prevent @drop="dropTask('todo')">
+                        <div class="column-header">
+                            <h3><i class="fas fa-clock"></i> To Do</h3>
+                            <span class="task-count">{{ todoTasks.length }}</span>
+                        </div>
+                        <div class="tasks-list" v-if="todoTasks.length > 0">
+                            <div v-for='task in todoTasks' :key='task.id' 
+                                 class="task-item todo-task" draggable="true"
+                                 @dragstart="dragTask(task)"
+                                 :class="getDateClass(task)">
+                                <div class="task-content">
+                                    <div class="task-header">
+                                        <span class="task-title">{{ task.title }}</span>
+                                    </div>
+                                    <div class="task-dates">
+                                        <div class="task-start-date" v-if="task.start_date">
+                                            <i class="far fa-calendar-alt"></i>
+                                            Start: {{ formatDate(task.start_date) }}
+                                            <span v-if="isOverdue(task)" class="overdue-badge">
+                                                <i class="fas fa-exclamation-triangle"></i> Overdue
+                                            </span>
+                                            <span v-else-if="isToday(task)" class="today-badge">
+                                                <i class="fas fa-bolt"></i> Today
+                                            </span>
+                                        </div>
+                                        <div class="task-created-date">
+                                            <i class="far fa-clock"></i>
+                                            Created: {{ formatDate(task.createdAt) }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button @click='startTask(task.id)' class="btn-start" title="Start task">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    <button @click='editTask(task)' class="btn-edit" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button @click='deleteTask(task.id)' class="btn-delete" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="empty-column">
+                            <i class="fas fa-inbox"></i>
+                            <p>No tasks to do</p>
+                            <small>Drag tasks here or add new ones above</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Colonne 2 : En cours -->
+                    <div class="tasks-column progress-column" @dragover.prevent @drop="dropTask('in_progress')">
+                        <div class="column-header">
+                            <h3><i class="fas fa-spinner"></i> In Progress</h3>
+                            <span class="task-count">{{ inProgressTasks.length }}</span>
+                        </div>
+                        <div class="tasks-list" v-if="inProgressTasks.length > 0">
+                            <div v-for='task in inProgressTasks' :key='task.id' 
+                                 class="task-item progress-task" draggable="true"
+                                 @dragstart="dragTask(task)">
+                                <div class="task-content">
+                                    <div class="task-header">
+                                        <span class="task-title">{{ task.title }}</span>
+                                    </div>
+                                    <div class="task-dates">
+                                        <div class="task-start-date" v-if="task.start_date">
+                                            <i class="far fa-calendar-alt"></i>
+                                            Start: {{ formatDate(task.start_date) }}
+                                        </div>
+                                        <div class="task-created-date">
+                                            <i class="far fa-clock"></i>
+                                            Created: {{ formatDate(task.createdAt) }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button @click='completeTask(task.id)' class="btn-complete" title="Mark as done">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button @click='moveToTodo(task.id)' class="btn-back" title="Back to To Do">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                    <button @click='editTask(task)' class="btn-edit" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="empty-column">
+                            <i class="fas fa-cogs"></i>
+                            <p>No tasks in progress</p>
+                            <small>Drag tasks from "To Do" to start working</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Colonne 3 : Terminées -->
+                    <div class="tasks-column done-column" @dragover.prevent @drop="dropTask('done')">
+                        <div class="column-header">
+                            <h3><i class="fas fa-check-circle"></i> Done</h3>
+                            <span class="task-count">{{ doneTasks.length }}</span>
+                        </div>
+                        <div class="tasks-list" v-if="doneTasks.length > 0">
+                            <div v-for='task in doneTasks' :key='task.id' 
+                                 class="task-item done-task" draggable="true"
+                                 @dragstart="dragTask(task)">
+                                <div class="task-content">
+                                    <div class="task-header">
+                                        <span class="task-title">{{ task.title }}</span>
+                                    </div>
+                                    <div class="task-dates">
+                                        <div class="task-start-date" v-if="task.start_date">
+                                            <i class="far fa-calendar-alt"></i>
+                                            Start: {{ formatDate(task.start_date) }}
+                                        </div>
+                                        <div class="task-created-date">
+                                            <i class="far fa-clock"></i>
+                                            Created: {{ formatDate(task.createdAt) }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="task-actions">
+                                    <button @click='reopenTask(task.id)' class="btn-reopen" title="Reopen task">
+                                        <i class="fas fa-redo"></i>
+                                    </button>
+                                    <button @click='deleteTask(task.id)' class="btn-delete" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="empty-column">
+                            <i class="fas fa-check-double"></i>
+                            <p>No tasks completed</p>
+                            <small>Complete tasks from "In Progress"</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Instructions drag & drop -->
+                <div class="drag-hint">
+                    <i class="fas fa-mouse-pointer"></i> Drag tasks between columns or use action buttons
+                </div>
+            </div>
+            
+            <!-- Modal d'édition -->
+            <div v-if='editingTask' class="modal">
+                <div class="modal-content">
+                    <h3><i class="fas fa-edit"></i> Edit Task</h3>
+                    <input v-model='editingTask.title' @keyup.enter='saveEdit' placeholder="Task title...">
+                    <div class="form-group">
+                        <label for="edit-start-date">
+                            <i class="far fa-calendar-alt"></i> Start date:
+                        </label>
+                        <input type="date" id="edit-start-date" v-model='editingTask.start_date'>
+                        <button @click="editingTask.start_date = null" class="btn-clear-date" 
+                                v-if="editingTask.start_date" type="button">
+                            <i class="fas fa-times"></i> Clear date
+                        </button>
+                    </div>
+                    <div class="modal-actions">
+                        <button @click='saveEdit' class="btn-save">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                        <button @click='cancelEdit' class="btn-cancel">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    // Authentification
+                    isAuthenticated: false,
+                    authMode: 'login',
+                    authError: '',
+                    authSuccess: '',
+                    loginData: { username: '', password: '' },
+                    registerData: { username: '', email: '', password: '', confirmPassword: '' },
+                    user: {},
+                    
+                    // Tâches
+                    tasks: [],
+                    todoTasks: [],
+                    inProgressTasks: [],
+                    doneTasks: [],
+                    newTask: '',
+                    newTaskDate: '', // Date de début pour nouvelle tâche
+                    editingTask: null,
+                    draggedTask: null,
+                    originalEditTask: null,
+                    today: new Date().toISOString().split('T')[0] // Aujourd'hui au format YYYY-MM-DD
+                }
+            },
+            methods: {
+                // === Méthodes d'authentification ===
+                switchAuthMode(mode) {
+                    this.authMode = mode;
+                    this.authError = '';
+                    this.authSuccess = '';
+                },
+                
+                async login() {
+                    if (!this.loginData.username || !this.loginData.password) {
+                        this.authError = 'Please fill in all fields';
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('http://localhost:8000/api/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(this.loginData)
+                        });
+                        
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Login failed');
+                        }
+                        
+                        const data = await response.json();
+                        
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                        
+                        this.user = data.user;
+                        this.isAuthenticated = true;
+                        this.authError = '';
+                        this.authSuccess = 'Login successful!';
+                        
+                        await this.loadAllTasks();
+                        
+                    } catch (error) {
+                        this.authError = error.message;
+                        this.authSuccess = '';
+                    }
+                },
+                
+                async register() {
+                    if (!this.registerData.username || !this.registerData.email || 
+                        !this.registerData.password || !this.registerData.confirmPassword) {
+                        this.authError = 'Please fill in all fields';
+                        return;
+                    }
+                    
+                    if (this.registerData.password !== this.registerData.confirmPassword) {
+                        this.authError = 'Passwords do not match';
+                        return;
+                    }
+                    
+                    if (this.registerData.password.length < 6) {
+                        this.authError = 'Password must be at least 6 characters';
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('http://localhost:8000/api/register', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                username: this.registerData.username,
+                                email: this.registerData.email,
+                                password: this.registerData.password
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Registration failed');
+                        }
+                        
+                        this.authSuccess = 'Registration successful! You can now login.';
+                        this.authError = '';
+                        this.switchAuthMode('login');
+                        
+                        this.registerData = { username: '', email: '', password: '', confirmPassword: '' };
+                        
+                    } catch (error) {
+                        this.authError = error.message;
+                        this.authSuccess = '';
+                    }
+                },
+                
+                logout() {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    this.isAuthenticated = false;
+                    this.user = {};
+                    this.tasks = [];
+                    this.todoTasks = [];
+                    this.inProgressTasks = [];
+                    this.doneTasks = [];
+                    this.authMode = 'login';
+                    this.authError = '';
+                    this.authSuccess = 'Logged out successfully';
+                },
+                
+                getAuthHeader() {
+                    const token = localStorage.getItem('token');
+                    return token ? { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    } : { 'Content-Type': 'application/json' };
+                },
+                
+                // === Méthodes pour les tâches ===
+                async loadAllTasks() {
+                    try {
+                        const response = await fetch('http://localhost:8000/api/tasks?status=all', {
+                            headers: this.getAuthHeader()
+                        });
+                        
+                        if (!response.ok) {
+                            if (response.status === 401) {
+                                this.logout();
+                                throw new Error('Session expired');
+                            }
+                            throw new Error('Failed to load tasks');
+                        }
+                        
+                        this.tasks = await response.json();
+                        this.filterTasksByStatus();
+                        
+                    } catch (error) {
+                        console.error('Error loading tasks:', error);
+                        if (error.message.includes('Session expired')) {
+                            this.authError = error.message;
+                        }
+                    }
+                },
+                
+                filterTasksByStatus() {
+                    // Tâches à faire : ordre chronologique
+                    this.todoTasks = this.tasks
+                        .filter(task => task.status === 'todo')
+                        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                    
+                    // Tâches en cours : ordre chronologique
+                    this.inProgressTasks = this.tasks
+                        .filter(task => task.status === 'in_progress')
+                        .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                    
+                    // Tâches terminées : ordre chronologique inverse
+                    this.doneTasks = this.tasks
+                        .filter(task => task.status === 'done')
+                        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                },
+                
+                async addTask() {
+                    if (!this.newTask.trim()) return;
+                    
+                    try {
+                        const taskData = {
+                            title: this.newTask,
+                            status: 'todo'
+                        };
+                        
+                        // Ajouter la date si elle est définie
+                        if (this.newTaskDate) {
+                            taskData.start_date = this.newTaskDate;
+                        }
+                        
+                        const response = await fetch('http://localhost:8000/api/tasks', {
+                            method: 'POST',
+                            headers: this.getAuthHeader(),
+                            body: JSON.stringify(taskData)
+                        });
+                        
+                        if (!response.ok) throw new Error('Failed to add task');
+                        
+                        // Réinitialiser les champs
+                        this.newTask = '';
+                        this.newTaskDate = '';
+                        
+                        await this.loadAllTasks();
+                        
+                    } catch (error) {
+                        console.error('Error adding task:', error);
+                        this.showError('Error adding task: ' + error.message);
+                    }
+                },
+                
+                showError(message) {
+                    alert(message);
+                },
+                
+                async changeTaskStatus(taskId, newStatus) {
+                    try {
+                        const response = await fetch(`http://localhost:8000/api/tasks/${taskId}/status`, {
+                            method: 'PUT',
+                            headers: this.getAuthHeader(),
+                            body: JSON.stringify({ status: newStatus })
+                        });
+                        
+                        if (!response.ok) throw new Error('Failed to update status');
+                        
+                        await this.loadAllTasks();
+                        
+                    } catch (error) {
+                        console.error('Error changing task status:', error);
+                    }
+                },
+                
+                // Actions de boutons
+                async startTask(taskId) {
+                    await this.changeTaskStatus(taskId, 'in_progress');
+                },
+                
+                async completeTask(taskId) {
+                    await this.changeTaskStatus(taskId, 'done');
+                },
+                
+                async reopenTask(taskId) {
+                    await this.changeTaskStatus(taskId, 'in_progress');
+                },
+                
+                async moveToTodo(taskId) {
+                    await this.changeTaskStatus(taskId, 'todo');
+                },
+                
+                // Drag & Drop
+                dragTask(task) {
+                    this.draggedTask = task;
+                },
+                
+                async dropTask(newStatus) {
+                    if (this.draggedTask && this.draggedTask.status !== newStatus) {
+                        await this.changeTaskStatus(this.draggedTask.id, newStatus);
+                        this.draggedTask = null;
+                    }
+                },
+                
+                // Supprimer une tâche
+                async deleteTask(taskId) {
+                    if (!confirm('Are you sure you want to delete this task?')) return;
+                    
+                    try {
+                        const response = await fetch(`http://localhost:8000/api/tasks/${taskId}`, {
+                            method: 'DELETE',
+                            headers: this.getAuthHeader()
+                        });
+                        
+                        if (!response.ok) throw new Error('Failed to delete task');
+                        
+                        await this.loadAllTasks();
+                        
+                    } catch (error) {
+                        console.error('Error deleting task:', error);
+                    }
+                },
+                
+                // Éditer une tâche
+                editTask(task) {
+                    this.editingTask = { 
+                        ...task,
+                        start_date: this.formatDateForInput(task.start_date)
+                    };
+                    this.originalEditTask = { ...task };
+                },
+                
+                async saveEdit() {
+                    if (!this.editingTask.title.trim()) {
+                        this.showError('Task title cannot be empty');
+                        return;
+                    }
+                    
+                    const updateData = {
+                        title: this.editingTask.title
+                    };
+                    
+                    // Inclure la date si elle a changé
+                    if (this.editingTask.start_date !== this.originalEditTask?.start_date) {
+                        updateData.start_date = this.editingTask.start_date;
+                    }
+                    
+                    try {
+                        const response = await fetch(`http://localhost:8000/api/tasks/${this.editingTask.id}`, {
+                            method: 'PUT',
+                            headers: this.getAuthHeader(),
+                            body: JSON.stringify(updateData)
+                        });
+                        
+                        if (!response.ok) throw new Error('Failed to save task');
+                        
+                        this.editingTask = null;
+                        this.originalEditTask = null;
+                        await this.loadAllTasks();
+                        
+                    } catch (error) {
+                        console.error('Error saving task:', error);
+                        this.showError('Error saving task: ' + error.message);
+                    }
+                },
+                
+                cancelEdit() {
+                    this.editingTask = null;
+                    this.originalEditTask = null;
+                },
+                
+                // Date d'aujourd'hui au format YYYY-MM-DD
+                getToday() {
+                    return new Date().toISOString().split('T')[0];
+                },
+                
+                // Formater la date pour l'affichage
+                formatDate(dateString) {
+                    if (!dateString) return 'No date';
+                    
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+                },
+                
+                // Formater la date pour l'input type="date"
+                formatDateForInput(dateString) {
+                    if (!dateString) return '';
+                    return dateString.split('T')[0];
+                },
+                
+                // Vérifier si une tâche est en retard
+                isOverdue(task) {
+                    if (!task.start_date || task.status === 'done') return false;
+                    
+                    const startDate = new Date(task.start_date);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    return startDate < today;
+                },
+                
+                // Vérifier si une tâche est pour aujourd'hui
+                isToday(task) {
+                    if (!task.start_date || task.status === 'done') return false;
+                    
+                    const startDate = new Date(task.start_date).toDateString();
+                    const today = new Date().toDateString();
+                    
+                    return startDate === today;
+                },
+                
+                // Obtenir la classe CSS en fonction de la date
+                getDateClass(task) {
+                    if (task.status !== 'todo') return '';
+                    
+                    if (this.isOverdue(task)) return 'overdue';
+                    if (this.isToday(task)) return 'today';
+                    return 'upcoming';
+                }
+            },
+            mounted() {
+                const token = localStorage.getItem('token');
+                const user = localStorage.getItem('user');
+                
+                if (token && user) {
+                    try {
+                        this.user = JSON.parse(user);
+                        this.isAuthenticated = true;
+                        this.loadAllTasks();
+                    } catch (e) {
+                        this.logout();
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        /* ===== Conteneur d'authentification ===== */
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 90vh;
+        }
+        
+        .auth-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .auth-box h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 2.2em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .auth-box h2 {
+            color: #555;
+            margin-bottom: 25px;
+            text-align: center;
+            font-size: 1.8em;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 5px solid;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+            border-left-color: #c62828;
+        }
+        
+        .alert-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left-color: #2e7d32;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-block {
+            width: 100%;
+        }
+        
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .auth-links {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+        
+        .auth-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        
+        .auth-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* ===== Interface principale ===== */
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .user-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-avatar {
+            font-size: 36px;
+        }
+        
+        .user-details {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .username {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .user-email {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .todo-stat {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+        
+        .progress-stat {
+            background: rgba(23, 162, 184, 0.2);
+            border: 1px solid rgba(23, 162, 184, 0.3);
+        }
+        
+        .done-stat {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn-logout {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 10px 20px;
+        }
+        
+        .btn-logout:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .main-content {
+            padding: 30px 40px;
+        }
+        
+        .main-content h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2.2em;
+        }
+        
+        /* Section d'ajout de tâche */
+        .add-task-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .add-task {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .task-title-input {
+            flex: 2;
+        }
+        
+        .task-date-input {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .task-date-input label {
+            white-space: nowrap;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .task-date-input input[type="date"] {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            width: 100%;
+        }
+        
+        .add-task input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .add-task input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn-add {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 15px 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-add:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .hint {
+            color: #666;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* ===== LES 3 COLONNES ===== */
+        .tasks-columns-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .tasks-column {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 500px;
+            border: 2px dashed transparent;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .tasks-column:hover {
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+        
+        .todo-column {
+            border-top: 5px solid #ffc107;
+        }
+        
+        .progress-column {
+            border-top: 5px solid #17a2b8;
+        }
+        
+        .done-column {
+            border-top: 5px solid #28a745;
+        }
+        
+        .column-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .column-header h3 {
+            color: #333;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .task-count {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            min-width: 30px;
+            text-align: center;
+        }
+        
+        .tasks-list {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        
+        .empty-column {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .empty-column i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.3;
+        }
+        
+        .empty-column p {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        
+        .empty-column small {
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        /* Styles des tâches dans les colonnes */
+        .task-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s;
+            cursor: move;
+            border-left: 5px solid;
+        }
+        
+        .task-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .todo-task {
+            border-left-color: #ffc107;
+        }
+        
+        .progress-task {
+            border-left-color: #17a2b8;
+        }
+        
+        .done-task {
+            border-left-color: #28a745;
+            opacity: 0.9;
+        }
+        
+        .task-content {
+            margin-bottom: 10px;
+        }
+        
+        .task-header {
+            margin-bottom: 8px;
+        }
+        
+        .task-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            word-break: break-word;
+        }
+        
+        /* Styles pour les dates */
+        .task-dates {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .task-start-date, .task-created-date {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 3px;
+        }
+        
+        .overdue-badge {
+            background: #dc3545;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .today-badge {
+            background: #ffc107;
+            color: #333;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        
+        .task-actions button {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-start {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-start:hover {
+            background: #138496;
+        }
+        
+        .btn-complete {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-complete:hover {
+            background: #218838;
+        }
+        
+        .btn-reopen {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn-reopen:hover {
+            background: #e0a800;
+        }
+        
+        .btn-back {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-back:hover {
+            background: #5a6268;
+        }
+        
+        .btn-edit {
+            background: #6f42c1;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background: #5a32a3;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        
+        /* Indicateurs visuels pour les dates */
+        .todo-task.overdue {
+            border-left-color: #dc3545;
+            background: #ffe6e6;
+        }
+        
+        .todo-task.today {
+            border-left-color: #ffc107;
+            background: #fff8e1;
+        }
+        
+        .todo-task.upcoming {
+            border-left-color: #17a2b8;
+            background: #e3f2fd;
+        }
+        
+        .drag-hint {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        /* Modal d'édition */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .modal-content h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .modal-content input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+        
+        .btn-save {
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .btn-save:hover {
+            background: #218838;
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+        
+        /* Styles pour le modal d'édition avec date */
+        .btn-clear-date {
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .btn-clear-date:hover {
+            background: #5a6268;
+        }
+        
+        /* Scrollbar */
+        .tasks-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .tasks-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .tasks-list::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        
+        .tasks-list::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* ===== Responsive ===== */
+        @media (max-width: 1200px) {
+            .tasks-columns-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .user-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+            
+            .stats {
+                justify-content: center;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .auth-box, .app-container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .tasks-columns-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .tasks-column {
+                min-height: auto;
+            }
+            
+            .add-task {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .task-title-input,
+            .task-date-input {
+                width: 100%;
+            }
+            
+            .task-date-input {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .task-actions {
+                justify-content: center;
+            }
+            
+            .modal-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</body>
+</html>

@@ -1,0 +1,41 @@
+version: '3.9'
+services:
+  db-fvuejs:
+    image: mysql:8
+    container_name: fullstack-b3-flask-vuejs-db
+    environment:
+      MYSQL_DATABASE: fullstack
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - '33668:3306'
+    # SUPPRIMEZ la ligne volumes avec init.sql
+    
+  backend-fvuejs:
+    image: python:3.11
+    container_name: fullstack-b3-flask-vuejs-backend
+    ports:
+      - '8000:5000'
+    depends_on:
+      - db-fvuejs
+    environment:
+      DB_HOST: db-fvuejs
+      DB_NAME: fullstack
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_PORT: 3306
+      JWT_SECRET_KEY: votre_secret_key_tres_securisee
+      JWT_ACCESS_TOKEN_EXPIRES: 3600
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+    command: sh -c "pip install -r requirements.txt && python app.py"
+    
+  frontend-fvuejs:
+    image: nginx:alpine
+    container_name: fullstack-b3-flask-vuejs-frontend
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    ports:
+      - '5173:80'
